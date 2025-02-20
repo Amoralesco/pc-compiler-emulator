@@ -5,6 +5,9 @@ __pycache__/
 
 # C extensions
 *.so
+*.yy.c
+*.out
+Labeltable.txt
 /venv
 # Distribution / packaging
 .Python
