@@ -12,7 +12,7 @@ typedef struct {
 labelEntry labelTable[MAX_LABELS];
 int labelCount = 0;
 int lineCount = 0;
-int dir = 7;
+int dir = 0;
 
 void processLabel(const char *yytext);
 %}

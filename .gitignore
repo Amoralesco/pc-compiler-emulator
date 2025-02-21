@@ -8,6 +8,10 @@ __pycache__/
 *.yy.c
 *.out
 Labeltable.txt
+relocate.txt
+binary.txt
+emsamblador
+enlazador
 /venv
 # Distribution / packaging
 .Python

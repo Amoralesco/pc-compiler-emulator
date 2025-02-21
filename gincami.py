@@ -95,17 +95,20 @@ class Rinux:
                 return i * self.pagging  # retorna la dirección de memoria física
         return -1  # si no hay memoria disponible
 
-    def run(self,file): #ejecutar un proceso
+    def run(self, file):
         dir = self.locate()
-        self.loadData(file,dir)
-        self.hardware.run(dir)
-        self.memory_page[dir // self.pagging] = 0
+        if dir >= 0:
+            self.loadData(file, dir)
+            self.hardware.run(dir)
+            self.memory_page[dir // self.pagging] = 0
+        else:
+            self.write("No hay memoria disponible")
 
     def loadData(self, file,dir):  # leer el archivo y cargar el programa en la memoria línea por línea
         with open(file, 'r') as f:
             program = [int(line.strip(), 2) for line in f.readlines()]
         for i, word in enumerate(program):
-            self.hardware.memory[i] = word
+            self.hardware.memory[dir + i] = word
 
 
     def read(self,data):  # leer de un periférico
@@ -117,19 +120,24 @@ class Rinux:
 
     def loop(self):
         self.write("Rinux started, Enter a command")
-        while True:
-            command = self.read("#: ")
-            if command.startswith("run"):
-                code = command.split(" ")[1]
-                self.run(code)
-            elif command == "exit":
-                break
-            elif command == "shom":
-                self.hardware.print_memory_in_binary(0, 64)
-            elif command == "shor":
-                self.hardware.print_registers()
-            else:
-                self.write("Unknown command")
+        self.status = True
+        while self.status:
+            try:
+                command = self.read("#: ")
+                if command.startswith("run"):
+                    code = command.split(" ")[1]
+                    self.run(code)
+                elif command == "exit":
+                    break
+                elif command == "shom":
+                    self.hardware.print_memory_in_binary(0, 64)
+                elif command == "shor":
+                    self.hardware.print_registers()
+                else:
+                    self.write("Unknown command")
+            except Exception as e:
+                self.write(f"Error: {str(e)}")
+                
         self.write("Rinux stopped")
 
 
@@ -269,67 +277,67 @@ class gincami32:
         if opcode == 0b01100: #MUL
             self.registers[rd] = self.alu.mul(self.registers[rt],self.registers[rs])
             return 
-        if opcode == 0b01101:
+        if opcode == 0b01101:#DIv
             self.registers[rd] = self.alu.div(self.registers[rt],self.registers[rs])
             return 
-        if opcode == 0b01110:
+        if opcode == 0b01110: #AND
             self.registers[rd] = self.alu.and_(self.registers[rt],self.registers[rs])
             return 
-        if opcode == 0b01111:
+        if opcode == 0b01111: #OR
             self.registers[rd] = self.alu.or_(self.registers[rt],self.registers[rs])
             return 
-        if opcode == 0b10000:
+        if opcode == 0b10000: #XOR
             self.registers[rd] = self.alu.xor(self.registers[rt],self.registers[rs])
             return 
-        if opcode == 0b10001:
+        if opcode == 0b10001: #MOV
             self.registers[rd] =  self.registers[rs]
             return 
-        if opcode == 0b10010:
+        if opcode == 0b10010: #CMP
             self.alu.sub(self.registers[rs],self.registers[rd])
             return 
-        if opcode == 0b10011:
+        if opcode == 0b10011: #PUSH
             self.mdr = self.registers[rd]
             self.mar = self.sp
             self.memory[self.mar] = self.mdr
             self.sp -= 1
             return 
-        if opcode == 0b10100:
+        if opcode == 0b10100: #POP
             self.mar = self.sp
             self.mdr = self.memory[self.mar]
             self.sp += 1
             self.registers[rd] = self.mdr
             return 
-        if opcode == 0b10101: 
+        if opcode == 0b10101: #READ
             self.registers[rd] = int(self.peripherals.read("Enter a number: "))
             return 
-        if opcode == 0b10110:
+        if opcode == 0b10110: #WRITE
             self.peripherals.write(self.registers[rd])
             return 
-        if opcode == 0b10111:
+        if opcode == 0b10111: #CLR
             self.registers[rd] = 0
             return 
-        if opcode == 0b11000:
+        if opcode == 0b11000: #DEC
             self.registers[rd] -= 1
             return 
-        if opcode == 0b11001:
+        if opcode == 0b11001: #INC
             self.registers[rd] += 1
             return 
-        if opcode == 0b11010:
+        if opcode == 0b11010: #NOT
             self.registers[rd] = self.alu.not_(self.registers[rd])
             return 
-        if opcode == 0b11011:
+        if opcode == 0b11011: #SHL
             self.registers[rd] = self.alu.shl(self.registers[rd])
             return 
-        if opcode == 0b11100:
+        if opcode == 0b11100: #SHR
             self.registers[rd] = self.alu.shr(self.registers[rd])
             return 
-        if opcode == 0b11101:
+        if opcode == 0b11101: #NEG
             self.registers[rd] = self.alu.neg(self.registers[rd])
             return 
-        if opcode == 0b11110:
+        if opcode == 0b11110: #HALT
             self.status = False
             return 
-        if opcode == 0b11111:
+        if opcode == 0b11111: #NOP
             return 
         
         else:
@@ -347,6 +355,6 @@ class gincami32:
             self.execute()
             self.clock_cycle += 1
 
-
-cpu = gincami32()
-cpu.os.loop()
+if __name__ == "__main__":
+    cpu = gincami32()
+    cpu.os.loop()

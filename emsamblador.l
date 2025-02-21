@@ -65,9 +65,9 @@ linecomment  ";".*
 "NOT"    { printf("11010000000000000000000000000"); }
 "SHL"    { printf("11011000000000000000000000000"); }
 "SHR"    { printf("11100000000000000000000000000"); }
-"NEG"    { printf("11111000000000000000000000000000"); }
-"HLT"    { printf("11101000000000000000000000000000");     saveSymbolTable("Labeltable.txt");}
-"NOP"    { printf("11110000000000000000000000000000"); } 
+"NEG"    { printf("11101000000000000000000000000000"); }
+"HLT"    { printf("11110000000000000000000000000000");     saveSymbolTable("Labeltable.txt");}
+"NOP"    { printf("11111000000000000000000000000000"); } 
 {delim}  { lineCount++; printf("\n"); }
 {ignore}
 {linecomment}
