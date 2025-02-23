@@ -12,6 +12,8 @@ relocate.txt
 binary.txt
 emsamblador
 enlazador
+preprocesador
+soluter
 /venv
 # Distribution / packaging
 .Python

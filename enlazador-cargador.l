@@ -3,79 +3,51 @@
 #include <stdio.h>
 #include <string.h>
 
-#define MAX_LABELS 100  
+int dir = 0;   /* Global variable */
 
-typedef struct {
-    char *lexeme;
-} labelEntry;
-
-labelEntry labelTable[MAX_LABELS];
-int labelCount = 0;
-int lineCount = 0;
-int dir = 0;
-
-void processLabel(const char *yytext);
+void processInstruction(const char *yytext);
+void print11BitBinary(int number, char *dest);
 %}
 
-delim   [\n]
-ws      {delim}+
-digit   [0-9]
-label   \({digit}+\)
+binary    [01]+
+parennum  \([0-9]+\)
+instr     {binary}{parennum}
 
 %%
 
-{label}    { processLabel(yytext); }
-.          { ECHO; }   /* Imprime el resto de la línea tal cual */
+{instr}    { processInstruction(yytext); }
+.|\n      { ECHO; }
 
 %%
 
-
-void print11BitBinary(int number) {
-    char bin[12];
-    bin[11] = '\0';
+/* Converts number to an 11-bit binary string stored in dest */
+void print11BitBinary(int number, char *dest) {
+    dest[11] = '\0';
     for (int i = 10; i >= 0; i--) {
-        bin[i] = (number & 1) ? '1' : '0';
+        dest[i] = (number & 1) ? '1' : '0';
         number >>= 1;
     }
-    printf("%s", bin);
 }
 
-void loadLabelTable() {
-    FILE *fp = fopen("Labeltable.txt", "r");  
-    if (fp == NULL) {
-        fprintf(stderr, "Error: cannot open LABELTABLE.TXT\n");
+/* Processes an instruction with a binary literal followed by a number in parentheses.
+   It extracts the binary part and the integer, sums the integer with dir, converts the sum
+   to an 11-bit binary string, and prints the original binary literal concatenated with that result. */
+void processInstruction(const char *yytext) {
+    char binaryPart[256];
+    int num;
+    /* Parse a string of 0s and 1s and then a number in parentheses */
+    if (sscanf(yytext, "%[01](%d)", binaryPart, &num) != 2) {
+        fprintf(stderr, "Error: invalid format '%s'\n", yytext);
         exit(1);
     }
-    char line[256];
-    labelCount = 0;
-    while (fgets(line, sizeof(line), fp) && labelCount < MAX_LABELS) {
-        int index;
-        char tempLabel[100], thirdColumn[100];
-        if (sscanf(line, "%d %s %s", &index, tempLabel, thirdColumn) == 3) {
-            if (index < MAX_LABELS) {
-                labelTable[index].lexeme = strdup(thirdColumn);
-                if (index >= labelCount)
-                    labelCount = index + 1;
-            }
-        }
-    }
-    fclose(fp);
+    int sum = dir + num;
+    char newBinary[12];
+    print11BitBinary(sum, newBinary);
+    /* Print the binary literal concatenated with the 11-bit binary sum */
+    printf("%s%s", binaryPart, newBinary);
 }
 
-void processLabel(const char *yytext) {
-    static int loaded = 0;
-    if (!loaded) {
-        loadLabelTable();
-        loaded = 1;
-    }
-
-    int labelIndex = atoi(yytext + 1);  
-    if (labelIndex < labelCount && labelTable[labelIndex].lexeme != NULL) {
-        int value = atoi(labelTable[labelIndex].lexeme);
-        int sum = value + dir;  /* Suma el valor extraido con 'dir' */
-        print11BitBinary(sum);
-    } else {
-        fprintf(stderr, "Error: label index %d out of range or not defined\n", labelIndex);
-        exit(1);
-    }
+int main(int argc, char **argv) {
+    yylex();
+    return 0;
 }
