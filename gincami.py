@@ -140,6 +140,40 @@ class Rinux:
                 
         self.write("Rinux stopped")
 
+    def print_memory_in_binary(self, start, end):
+        for i in range(start, end):
+            print(f"{i:03d}: {self.hardware.memory[i]:032b}")
+
+    def print_registers(self):
+        for i in range(8):
+            print(f"R{i}: {self.hardware.registers[i]:032b}")
+        print(f"PC: {self.hardware.pc:032b}")
+        print(f"SP: {self.hardware.sp:032b}")
+        print(f"CIR: {self.hardware.cir:032b}")
+        print(f"MAR: {self.hardware.mar:032b}")
+        print(f"MDR: {self.hardware.mdr:032b}")
+        print(f"PSW: {self.hardware.psw}")
+        print(f"Clock cycle: {self.hardware.clock_cycle}")
+
+    def return_memory_in_binary(self, start, end):
+        memory = []
+        for i in range(start, end):
+            memory.append(f"{i:03d}: {self.hardware.memory[i]:032b}")
+        return memory
+
+    def return_registers(self):
+        registers = []
+        for i in range(8):
+            registers.append(f"R{i}: {self.hardware.registers[i]:032b}")
+        registers.append(f"PC: {self.hardware.pc:032b}")
+        registers.append(f"SP: {self.hardware.sp:032b}")
+        registers.append(f"CIR: {self.hardware.cir:032b}")
+        registers.append(f"MAR: {self.hardware.mar:032b}")
+        registers.append(f"MDR: {self.hardware.mdr:032b}")
+        registers.append(f"PSW: {self.hardware.psw}")
+        registers.append(f"Clock cycle: {self.hardware.clock_cycle}")
+        return registers
+
 
 
 class gincami32:

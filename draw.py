@@ -1,10 +1,13 @@
-import tkinter as tk
-from tkinter import scrolledtext
-import threading
+import os
+import platform
 import queue
 import subprocess
+import threading
+import tkinter as tk
+from tkinter import scrolledtext
+
 from gincami import gincami32  # Asegúrate de que gincami.py esté en el mismo directorio
-import os
+
 
 class App:
     def __init__(self, root):
@@ -12,14 +15,35 @@ class App:
         self.root.title("Simulador Gincami32")
         self.input_queue = queue.Queue()
 
+        self.displayed_memory = None
+        self.displayed_registers = None
+
         # Consola principal
         display_frame = tk.Frame(root)
         display_frame.pack(padx=10, pady=10, fill=tk.BOTH, expand=True)
+
+        display_frame.columnconfigure(0, weight=1)
+        display_frame.columnconfigure(1, weight=1)
+        display_frame.columnconfigure(2, weight=1)
+
         console_frame = tk.Frame(display_frame)
-        console_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        console_frame.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
+        tk.Label(console_frame, text="Consola").pack(anchor="n", pady=5)
         self.output_text = scrolledtext.ScrolledText(console_frame, width=60, height=20, state=tk.DISABLED)
         self.output_text.pack(fill=tk.BOTH, expand=True)
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
+
+        memory_frame = tk.Frame(display_frame)
+        memory_frame.grid(row=0, column=1, sticky="nsew", padx=5, pady=5)
+        tk.Label(memory_frame, text="Memoria").pack(anchor="n", pady=5)
+        self.memory_display = scrolledtext.ScrolledText(memory_frame, width=60, height=20)
+        self.memory_display.pack()
+
+        register_frame = tk.Frame(display_frame)
+        register_frame.grid(row=0, column=2, sticky="nsew", padx=5, pady=5)
+        tk.Label(register_frame, text="Registros").pack(anchor="n", pady=5)
+        self.register_display = scrolledtext.ScrolledText(register_frame, width=60, height=20)
+        self.register_display.pack()
 
         # Entrada y botón de comando para la CPU
         input_frame = tk.Frame(root)
@@ -38,6 +62,9 @@ class App:
         self.os_thread = threading.Thread(target=self.cpu.os.loop, daemon=True)
         self.os_thread.start()
         self.max_console_lines = 1000
+
+        self.update_memory_display()
+        self.update_registers_display()
 
     def _append(self, message):
         self.output_text.configure(state=tk.NORMAL)
@@ -72,6 +99,8 @@ class App:
             self.write(f"> {cmd}")
             self.input_queue.put(cmd)
             self.input_entry.delete(0, tk.END)
+        self.update_memory_display()
+        self.update_registers_display()
 
     def on_closing(self):
         print("Cerrando aplicación...")
@@ -88,28 +117,51 @@ class App:
         # Forzar la terminación del proceso
         os._exit(0)
 
-        
+    def update_memory_display(self):
+        memory = self.cpu.os.return_memory_in_binary(0, 64)
+        if memory == self.displayed_memory:
+            self.root.after(1000, self.update_memory_display)
+            return
+        self.displayed_memory = memory
+        self.memory_display.delete("1.0", tk.END)
+        for line in memory:
+            self.memory_display.insert(tk.END, line + "\n")
+        self.root.after(1000, self.update_memory_display)
+
+    def update_registers_display(self):
+        registers = self.cpu.os.hardware.os.return_registers()
+        if registers == self.displayed_registers:
+            self.root.after(1000, self.update_registers_display)
+            return
+        self.displayed_registers = registers
+        self.register_display.delete("1.0", tk.END)
+        for reg in registers:
+            self.register_display.insert(tk.END, reg + "\n")
+        self.root.after(1000, self.update_registers_display)
+
 
 def run_terminal_command_preprocessor():
+    os_name = platform.system()
+    if os_name == "Windows":
+        command = ['wsl', './preprocesador']
+    else:
+        command = ['./preprocesador']
     code_content = code_editor_preprocessor.get("1.0", tk.END)
-    proc = subprocess.run(
-        ['./preprocesador'],
-        input=code_content.encode(),
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE
-    )
+    proc = subprocess.run(command, input=code_content.encode(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     result = proc.stdout.decode() + proc.stderr.decode()
     with open("preprocessed.txt", "w") as f:
         f.write(result)
     code_editor1.delete("1.0", tk.END)
     code_editor1.insert(tk.END, result)
 
+
 def run_terminal_command_processor():
-    proc = subprocess.run(
-        ['./procesador'],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE
-    )
+    os_name = platform.system()
+    if os_name == "Windows":
+        command = ['wsl', './procesador']
+    else:
+        command = ['./procesador']
+    proc = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     result = proc.stdout.decode() + proc.stderr.decode()
     with open("processor_output.txt", "w") as f:
         f.write(result)
@@ -117,40 +169,36 @@ def run_terminal_command_processor():
     code_editor_processor.insert(tk.END, result)
 
 
-
-
 def run_terminal_command_assembly():
+    os_name = platform.system()
+    if os_name == "Windows":
+        command = ['wsl', './emsamblador']
+    else:
+        command = ['./emsamblador']
     # Lee el contenido escrito en la pantalla (editor ensamblador)
     code_content = code_editor1.get("1.0", tk.END)
     # Ejecuta el comando ./emsablador pasándole el contenido como entrada estándar
-    proc = subprocess.run(
-        ['./emsablador'],
-        input=code_content.encode(),
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE
-    )
-    proc_s = subprocess.run(
-        ['./soluter'],
-        input=proc.stdout,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE
-    )
+    proc = subprocess.run(command, input=code_content.encode(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if os_name == "Windows":
+        command2 = ['wsl', './soluter']
+    else:
+        command2 = ['./soluter']
+    proc_s = subprocess.run(command2, input=proc.stdout, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     result = proc_s.stdout.decode() + proc_s.stderr.decode()
     with open("relocate.txt", "w") as f:
         f.write(result)
     code_editor2.delete("1.0", tk.END)
     code_editor2.insert(tk.END, result)
 
+
 def run_terminal_command_relocate():
-    proc = subprocess.run(
-        './enlazador < relocate.txt', shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
-    )
+    proc = subprocess.run('./enlazador < relocate.txt', shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     result = proc.stdout.decode() + proc.stderr.decode()
     with open("binary.txt", "w") as f:
         f.write(result)
     code_editor3.delete("1.0", tk.END)
-    code_editor3.insert(tk.END, result)
-    # Se removió la actualización de la tabla de símbolos
+    code_editor3.insert(tk.END, result)  # Se removió la actualización de la tabla de símbolos
+
 
 def run_terminal_command_binary():
     try:
@@ -161,7 +209,6 @@ def run_terminal_command_binary():
         app.input_queue.put(f"run binary.txt")
     except Exception as e:
         app.write(f"Error: {str(e)}")
-
 
 
 if __name__ == "__main__":
@@ -186,7 +233,6 @@ if __name__ == "__main__":
     code_editor_processor = scrolledtext.ScrolledText(panel_processor, wrap=tk.NONE, height=10, width=40)
     code_editor_processor.pack(fill=tk.BOTH, expand=True)
     tk.Button(panel_processor, text="Procesar", command=run_terminal_command_processor).pack(pady=5)
-
 
     # Panel izquierdo para el ensamblador
     panel1 = tk.Frame(command_frame)
@@ -216,6 +262,5 @@ if __name__ == "__main__":
     code_editor3 = scrolledtext.ScrolledText(panel3, wrap=tk.NONE, height=10, width=40)
     code_editor3.pack(fill=tk.BOTH, expand=True)
     tk.Button(panel3, text="Ejecutar", command=run_terminal_command_binary).pack(pady=5)
-
 
     root.mainloop()
